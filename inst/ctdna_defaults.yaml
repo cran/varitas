@@ -1,0 +1,22 @@
+# Default filter settings for mode: ctDNA
+# these generally won't have normals, but include filters anyways
+#
+# Filters supplied under default are used as the baseline for all callers
+# any filters specified under a specific caller will take precedence over
+# the default filters
+filters:
+  default:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    ct_min_tumour_allele_frequency: 0.05
+    indel_min_tumour_allele_frequency: 0.05
+    min_normal_depth: 5
+    max_normal_allele_frequency: 0
+    remove_1000_genomes: true
+    remove_exac: true
+  pgm:
+    indel_min_tumour_allele_frequency: 0.02
+  vardict:
+    remove_germline_status: true
+  isis:
+    indel_min_tumour_allele_frequency: 0.02

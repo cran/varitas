@@ -1,0 +1,392 @@
+---
+title: "VariTAS Pipeline Report"
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    pdf_document:
+        toc: true
+---
+
+```{r setup, include = FALSE}
+library(varitas);
+
+knitr::opts_chunk$set(
+    echo = TRUE, 
+    fig.height = 4,
+    dev.args = list(bg = 'white')
+    );
+
+```
+
+\newpage
+
+# Sample QC
+
+## Coverage per Sample
+
+```{r, echo = FALSE, results = FALSE}
+coverage.sample <- get.coverage.by.sample.statistics(project.directory);
+
+plot.coverage.by.sample(coverage.sample[order(-coverage.sample$mean.coverage),], file.name = NULL, statistic = 'mean');
+plot.coverage.by.sample(coverage.sample[order(-coverage.sample$median.coverage),], file.name = NULL, statistic = 'median');
+
+```
+
+## Ontarget Percent
+```{r, echo = FALSE, results = FALSE}
+plot.ontarget.percent(
+    coverage.sample, 
+    file.name = NULL
+    );
+```
+
+## Paired Percent
+```{r, echo = FALSE, results = FALSE}
+plot.paired.percent(
+    coverage.sample, 
+    file.name = NULL
+    );
+```
+
+
+\newpage
+
+# Variants
+
+## Variants per Sample
+```{r, echo = FALSE, results = FALSE}
+
+varitas:::variants.sample.barplot(
+    filtered.variants, 
+    file.name = NULL
+    );
+```
+
+## Variants per Caller
+
+
+```{r, echo = FALSE, results = FALSE}
+varitas:::variants.caller.barplot(
+    filtered.variants, 
+    file.name = NULL, 
+    group.by = 'type'
+    );
+```
+
+## Trinucleotide Substitutions
+```{r, echo = FALSE, results = FALSE}
+varitas:::trinucleotide.barplot(
+    filtered.variants, 
+    file.name = NULL
+    );
+```
+
+## Trinucleotide Substitutions by Caller
+```{r, echo = FALSE, results = FALSE}
+varitas:::variants.caller.barplot(
+    filtered.variants, 
+    file.name = NULL, 
+    group.by = 'substitution'
+    );
+```
+
+## Recurrent Variants
+
+```{r, echo = FALSE, results = FALSE}
+varitas:::variant.recurrence.barplot(
+    filtered.variants, 
+    file.name = NULL 
+    );
+```
+
+
+## Concordance Between Callers
+```{r, echo = FALSE, results = FALSE, fig.height = 6}
+# Caller overlap venn diagram
+all.callers <- stringr::str_split(filtered.variants$caller, pattern = ':');
+unique.callers <- unique( unlist(all.callers) );
+
+
+# create ID field to uniquely identify variants
+filtered.variants$id <- paste0(
+    filtered.variants$sample.id, '-', 
+    filtered.variants$CHROM, ':', 
+    filtered.variants$POS, '-',
+    filtered.variants$REF, '>', 
+    filtered.variants$ALT
+);
+
+caller.results <- lapply(
+    unique.callers, 
+    function(caller, variants) {
+        return(variants$id[ grepl(caller, variants$caller) ])
+    }, 
+    variants = filtered.variants
+);
+
+names(caller.results) <- varitas::capitalize.caller(unique.callers);
+
+# turn off log files
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger");
+colour.scheme <- c(
+    '#0039A6', '#FF6319', '#6CBE45', '#996633', '#A7A9AC', 
+    '#FCCC0A', '#B933AD', '#EE352E',  '#808183', '#00933C'
+    );
+
+
+venn.object <- VennDiagram::venn.diagram(
+    caller.results, 
+    filename = NULL,
+    fill = colour.scheme[ 1:length(unique.callers) ], 
+    ext.text = FALSE,
+    ext.percent = rep(0.01, 3),
+    cat.pos = 0
+    );
+
+plot.new();
+grid::grid.draw(venn.object);
+```
+
+
+\newpage
+
+# Coverage by Amplicon
+
+```{r, echo = FALSE, results = FALSE}
+coverage.statistics <- get.coverage.by.amplicon(project.directory);
+
+first.sample.column <- 4;
+	while( !is.numeric(coverage.statistics[, first.sample.column]) && first.sample.column <= ncol(coverage.statistics) ) {
+		if( ncol(coverage.statistics) == first.sample.column ) {
+			stop('Cannot find first sample column');
+		}
+
+		first.sample.column <- first.sample.column + 1;
+	}	
+
+genes <- get.gene(coverage.statistics);
+	
+gene.start <- vapply(
+  unique(genes), 
+  function(x, genes) match(x, genes), 
+  genes = genes,
+  FUN.VALUE = 0
+);
+
+gene.end <- c(gene.start[-1], nrow(coverage.statistics) + 1);
+midpoints <- gene.start + (gene.end - gene.start)/2;
+
+chr.nums <- sapply(coverage.statistics$chr, function(x) substr(x, 4, nchar(x)))
+to.remain <- sapply(chr.nums, function(x) x != 'X' && x != 'Y')
+
+old.names <- names(coverage.statistics)
+coverage.statistics <- cbind(genes, chr.nums, coverage.statistics)
+names(coverage.statistics) <- c('gene', 'chr.no', old.names)
+first.sample.column <- first.sample.column + 2
+for(i in which(sapply(coverage.statistics, class) == "factor")) coverage.statistics[[i]] = as.character(coverage.statistics[[i]])
+
+colours <- c()
+shapes <- c()
+chr.palette = c(
+  '#8DD3C7', '#081D58', '#BEBADA', '#FB8072', '#CCEBC5', '#FDB462', '#999999', '#FCCDE5', '#FC8D59', '#35978F', 
+  '#F781BF', '#FFED6F', '#E41A1C', '#377EB8', '#4DAF4A', '#984EA3', '#A65628', '#80B1D3', '#252525', '#A6761D',
+  '#B3DE69', '#F0027F', '#FFFFCC', '#FDDBC7', '#004529'
+)
+
+# Sort by chromosome and position (sex chromosomes at the end)
+sex.chr.rows <- coverage.statistics[!to.remain, ]
+coverage.statistics <- coverage.statistics[to.remain, ]
+coverage.statistics$chr.no <- as.integer(coverage.statistics$chr.no)
+coverage.order <- order(coverage.statistics$chr.no, coverage.statistics$start, coverage.statistics$end);
+coverage.statistics <- coverage.statistics[ coverage.order, ];
+sex.chr.order <- order(sex.chr.rows$chr.no, sex.chr.rows$start, sex.chr.rows$end);
+sex.chr.rows <- sex.chr.rows[ sex.chr.order, ];
+coverage.statistics <- rbind(coverage.statistics, sex.chr.rows)
+
+genes <- unique(coverage.statistics$gene)
+chr.list <- coverage.statistics$chr.no
+
+# Alternating red and blue for each chromosome present
+red <- TRUE
+prev.chr <- ''
+for (j in 1:length(chr.list)) {
+  chr.ending <- chr.list[j]
+  if (chr.ending != prev.chr){
+	  if (red) {
+	    colours <- c(colours, 'red')
+	    shapes <- c(shapes, 21)
+	    red <- FALSE
+	  } else {
+	    colours <- c(colours, 'blue')
+	    shapes <- c(shapes, 22)
+	    red <- TRUE
+	  }
+  } else {
+    colours <- c(colours, colours[length(colours)])
+    shapes <- c(shapes, shapes[length(shapes)])
+  }
+  prev.chr <- chr.ending
+}
+```
+
+
+## Median
+
+```{r, echo = FALSE, results = FALSE, fig.height = 4}
+if (first.sample.column < ncol(coverage.statistics)) {
+	avg.coverage.stats <- aggregate.data.frame(
+	    coverage.statistics[, first.sample.column:ncol(coverage.statistics)], 
+	    list(coverage.statistics$gene), 
+	    sum
+	    );
+	avg.coverage.stats <- avg.coverage.stats[match(genes, avg.coverage.stats$Group.1),]
+	median.coverage <- apply(
+		avg.coverage.stats[, 2:ncol(avg.coverage.stats)],
+		1,
+		stats::median
+		);
+} else { # Only one sample
+  median.coverage <- stats::median(coverage.statistics[, first.sample.column])
+}
+
+graphics::par(
+	  mar =  c(3.4, 4, 1.2, 0.2),
+	  cex.axis = 0.6,
+	  font.axis = 1,
+	  oma = c(0, 0, 0, 0),
+	  las = 2,
+	  tcl = -0.2
+	);
+	
+graphics::plot(
+	x = jitter(seq_along(median.coverage), 0.15),
+	y = median.coverage,
+	main = 'Median Coverage',
+	cex = 0.8,
+	pch = 21,
+	bg = 'grey',
+	col = 'black',
+	xlab = '',
+	ylab = 'Coverage',
+	xaxt = 'n',
+	xaxs = 'r'
+	);
+
+#graphics::abline(v = gene.start[-1], col = 'grey', lty = 'dashed');
+graphics::axis(1, at = 1:length(unique(genes)), labels = unique(genes), font = 2);
+```
+
+
+
+```{r, echo = FALSE, results = 'asis', fig.height = 4 }
+graphics::par(
+	  mar =  c(3.4, 4, 1.2, 0.2),
+	  cex.axis = 0.6,
+	  font.axis = 1,
+	  oma = c(0, 0, 0, 0),
+	  las = 2,
+	  tcl = -0.2
+	);
+
+# loop over columns and plot all of them
+for(i in first.sample.column:ncol(coverage.statistics) ) {
+
+	sample.id <- names(coverage.statistics)[i];
+	sample.coverage <- coverage.statistics[, i];
+	
+	x <- c()
+		for (g in 1:length(unique(genes))) {
+		  for (i in 1:length(which(coverage.statistics$gene == unique(genes)[g]))) {
+		    x <- c(x, g)
+		  }
+		}
+	
+	cat('## ', sample.id, '\n');
+
+	graphics::plot(
+			x = jitter(x, amount = 0.15),
+			y = sample.coverage,
+			main = sample.id,
+			cex = 0.8,
+			pch = shapes,
+			# pch = 21,
+			bg = colours,
+			col = 'black',
+			xlab = '',
+			ylab = 'Coverage',
+			xaxt = 'n',
+			xaxs = 'r'
+			);
+
+	#graphics::abline(v = gene.start[-1], col = 'grey', lty = 'dashed');
+	graphics::axis(1, at = 1:length(unique(genes)), labels = unique(genes), font = 2);
+	cat('\n\n');
+
+}
+```
+
+\newpage
+
+# Plot Descriptions
+
+## Variants
+
+*Variants per Sample* \newline
+The number of variants called by sample, broken down into SNV/ MNV/ indel. Copy number variants are filtered out as part of the pipeline.
+
+*Variants per Caller* \newline
+The number of variants called by caller, coloured by type of variant.
+
+*Trinucleotide Substitutions* \newline
+Number of variants called by trinucleotide substitutions, across all callers.
+
+*Trinucleotide Substitutions by Caller* \newline
+Caller-level variant counts broken down by trinucleotide substitution.
+
+*Recurrent Variants* \newline
+Recurrent variants in the cohort, grouped by caller(s).
+
+*Concordance Between Callers* \newline
+Overlap between variants called by different callers.
+
+## Sample QC
+
+Every plot shows a quality control metric per sample. Each bar represents a sample, and the y-axis shows the relevant quality control metric. The raw data used for these plots can be found in the file **Coverage_statistics.xlsx** (*Coverage by sample* sheet).
+
+## Coverage by Amplicon
+
+Each plot shows the coverage per amplicon per sample. The amplicons are ordered by genomic position (lexicographical order). Due to limited space, not all gene labels are shown. The raw data used for these plots can be found in the file **Coverage_statistics.xlsx** (*Coverage by amplicon* sheet).
+
+\newpage
+
+# Additional Files
+
+## Filtered_variants.xlsx
+
+Variants called by sample, with ANNOVAR annotation. The *Interpro_domain* column contains the predicted protein domain of the mutations. If a gene has several transcripts, the protein domains are ordered from worst to best predicted impact. For more details about the ANNOVAR annotation fields, see the [ANNOVAR website](http://annovar.openbioinformatics.org/en/latest/user-guide/filter/).
+
+The *Filters* sheet contains the variant calling filters that were used in the pipeline run.
+
+## Coverage_statistics.xlsx
+Per sample and per amplicon coverage. The workbook contains two sheets. **Coverage by sample** contains summarised coverage statistics per sample. **Coverage by amplicon** contains the number of reads mapped to each amplicon in each sample.
+
+
+## filtered_variants.txt
+
+Filtered variants in tab-delimited format. The content is the same as the *Variants* sheet of **Filtered_variants.xlsx**.
+
+\newpage
+
+# Pipeline Details
+
+```{r, echo = FALSE}
+cat(
+    'varitas version', 
+    as.character( packageVersion('varitas') ), '\n',
+    'Date:', format(Sys.Date(), format = '%Y-%m-%d'), '\n',
+    'User:', Sys.info()['user'], '\n\n'
+    );
+
+# need to find a way to wrap this...
+cat('Raw/intermediate files can be found in\n', project.directory);
+```
+

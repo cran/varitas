@@ -1,0 +1,567 @@
+---
+title: "The VariTAS Pipeline"
+author: "Erle Holgersen and Adam Mills"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    theme: united
+    highlight: kate
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+  pdf_document:
+    toc: yes
+bibliography: references.bib
+vignette: >
+  %\VignetteIndexEntry{Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '../')
+
+```
+
+# Pipeline Overview
+
+The VariTAS pipeline is an R package for processing amplicon-based targeted sequencing. It supports alignment, somatic variant calling (with and without matched normal), and variant annotation, and the pipeline can start from any stage. 
+
+Both Illumina sequencing (typically MiniSeq) and Ion Torrent systems are supported by the pipeline, but they require different configurations. For Illumina runs, the FASTQ files are used to start the pipeline at the alignment stage. For Ion Torrent sequencing, the aligned BAM files from the machine are used as input. 
+
+The pipeline is designed to be fully automated. Once the pipeline is launched, cluster jobs will be submitted for all tasks. In the case that some jobs depend on others, these job dependencies will be included in the script and handled by the cluster. 
+
+Each stage of the pipeline is associated with a file specification data frame. This data frame contains paths to the files to be processed at that stage, and information on any job dependencies. In turn, each pipeline stage will return a data frame that can be used for the next stage in the pipeline. 
+
+File paths, run parameters, HPC settings, and other options are controlled by a config file. See the [Updating Settings](#settings) section below for more details.
+
+To start using the pipeline quickly, see the [Examples](#examples) section.
+
+## Third-Party Software
+
+There are several essential programs that the VariTAS pipeline requires. The table below provides essential information about each of them. The version number indicates the latest version tested with the pipeline.
+
+|Program|Version|Download Link|
+|:------|:------|:-----------------------------|
+|BWA|0.7.12|http://bio-bwa.sourceforge.net/|
+|bedtools|2.25.0|https://bedtools.readthedocs.io/en/latest/|
+|Samtools|1.5|http://www.htslib.org/|
+|Picard|2.1.0|https://broadinstitute.github.io/picard/|
+|Vardict (Java)|1.4.6|https://github.com/AstraZeneca-NGS/VarDictJava|
+|FastQC|0.11.4|https://www.bioinformatics.babraham.ac.uk/projects/fastqc/|
+
+## Directory Structure
+
+```
+Note that only the top output directory needs to be manually created
+
+  .                           # Supplied output directory
+   |-2018-11-12-plots         # Contains generated plots used in report
+   |---sample-coverage        # Coverage plots generated per-sample
+   |-2018-11-12-variant-data  # Final output files, including the PDF report
+   |-78                       # Directory for each sample, containing intermediary files
+   |---mutect                 # Files produced by MuTect for each sample
+   |---vardict                # Files produced by VarDict for each sample
+   |-code                     # Bash scripts used to submit jobs to HPC scheduler
+   |-log                      # stdout and stderr for each job
+   
+```
+
+## Stages
+
+There are four stages to the VariTAS pipeline: alignment, variant calling, annotation, and merging. 
+
+|Stage |Description|
+|:------|:-------|
+|Alignment|Align FASTQ files to reference genome|
+|Variant Calling|Run variant callers on aligned BAM files|
+|Annotation|Annotate variants with ANNOVAR|
+|Merging|Merge files from all variant callers and produce reports/ plots|
+
+### Alignment
+
+Alignment consists of two main steps: alignment with bwa, and coverage quality control.
+
+For Illumina sequencing runs, both steps will typically be necessary. For Proton runs, the machine does the alignment against UCSC hg19. While the machine also outputs FASTQ files, realigning these yourself is not recommended as read quality information is lost[^1]. 
+
+The main function for running alignment is `run.alignment()`. It takes a FASTQ specification data frame as input, submits one alignment job per sample, and returns a BAM specification data frame.
+
+```{r fastq}
+library(varitas);
+
+output.directory <- '';
+
+fastq.specification <- data.frame(
+    sample.id = c('A', 'B', 'C', 'D'), 
+    patient.id = c('X', 'X', 'Y', 'Y'), 
+    tissue = c('tumour', 'normal', 'tumour', 'normal'), 
+    reads = c('A_1.fq', 'B_1.fq', 'C_1.fq', 'D_1.fq'),
+    mates = c('A_2.fq', 'B_2.fq', 'C_2.fq', 'D_2.fq')
+    );
+
+print(fastq.specification);
+```
+
+The FASTQ specification must have columns **sample.id** and **reads**. Optionally, it can contain a column **mates** (for paired end reads), and columns **patient.ID** and **tissue**. If provided, the patient ID and tissue information will be used to do matched normal somatic variant calling in later stages of the pipeline. 
+
+After creating the FASTQ specification data frame, we are ready to run the alignment step of the pipeline.
+
+
+```{r alignment, results="hide"}
+matched.bam.specification <- run.alignment(
+    fastq.specification = fastq.specification, 
+    output.directory = output.directory, 
+    paired.end = TRUE,
+    quiet = TRUE # only for testing, does not submit jobs to cluster
+    );
+```
+
+The alignment step returns a BAM specification data frame that can be used for the variant calling. When patient ID and tissue information is provided in the input data frame, the output data frame will contain tumour and normal BAM files for each tumour sample. When no patient ID/ tissue information is provided, all samples are assumed to be tumours, and variant calling without matched normal is performed in the subsequent step.
+
+
+```{r}
+print(matched.bam.specification);
+```
+
+
+### Variant Calling
+
+Variant calling is performed through the `run.variant.calling()` function. The form of the input BAM specification depends on whether matched normals are available. If no matched normals are available, the only two required columns are **sample.id** and **tumour.bam**. 
+
+```{r variants1}
+unmatched.bam.specification <- data.frame(
+    sample.id = c('Z', 'Y'), 
+    tumour.bam = c('Z.bam', 'Y.bam')
+    );
+
+print(unmatched.bam.specification);
+```
+
+In addition to the bam specification data frame, `run.variant.calling()` takes the variant callers as an argument. To run VarDict and MuTect 2 on the previous matched normal example, you can use the following code.
+
+```{r variants2, results = FALSE}
+vcf.specification <- run.variant.calling(
+    matched.bam.specification, 
+    output.directory = output.directory, 
+    variant.caller = c('vardict', 'mutect'),
+    quiet = TRUE # only for testing, does not submit jobs to cluster
+    );
+```
+
+```{r}
+print(vcf.specification);
+```
+
+The VCF specification includes information on the variant caller used to produce the VCF file. This is needed for downstream filtering steps, and used to create unique job names for annotation jobs.
+
+#### VarDict
+
+[VarDict](https://github.com/AstraZeneca-NGS/VarDict) [@vardict] is a variant caller optimized for deep sequencing. As performance scales linearly with depth, downsampling reads is not necessary, and VarDict has greater sensitivity for detecting variants present at low allele frequencies compared to other callers.
+
+#### MuTect
+
+[MuTect](https://software.broadinstitute.org/cancer/cga/mutect) [@mutect] is most commonly used for calling variants from whole genome and whole exome sequencing data. It is not optimized for amplicon data, and downsamples to depth 1,000 when it encounters deep sequencing data. When detecting variants in circulating DNA, this downsampling can result in mutations being lost, and running MuTect is not recommended. However, when sequencing solid tumours the variant allele frequencies are higher and there is less concern about losing mutations.  
+
+### Annotation
+
+Variant file annotation is done with ANNOVAR, and annotated variants are saved to a tab-separated file. The config file specifies the fields to be included in the final tab-separated file. More fields can be added as long as they are included in the ANNOVAR databases.
+
+```{r, results = FALSE}
+variant.specification <- run.annotation(
+    vcf.specification, 
+    output.directory = output.directory, 
+    quiet = TRUE # testing only
+    );
+```
+```{r, eval = FALSE}
+print(variant.specification);
+```
+
+### Merging
+The main function for submitting the post-processing job to the cluster is `run.post.processing()`. Similar to the alignment, variant calling, and variant annotation stages, this function will submit a cluster job with job dependencies as specified by the variant specification. 
+
+However, unlike the other stages, the post processing stage does not rely on any command line tools. If there are no job dependencies, the post-processing stage can be run directly through the `post.processing()` function. 
+
+```{r, results = FALSE}
+run.post.processing(
+	variant.specification = variant.specification, 
+	output.directory = output.directory, 
+	quiet = TRUE
+	);
+```
+
+There are three main parts to the post-processing stage:
+
+1. Variant merging 
+
+2. Summary plots and PDF report
+
+3. Quality control Excel sheet
+
+The output is split between two date-stamped subdirectories of the project directory. The `variant-data` directory contains files that are meant to be sent to collaborators: filtered variants in Excel and text formats, coverage statistics in Excel format, and a PDF report. Additionally, the PNG format plots are saved to the `plots` directory.
+
+The final page of the PDF report contains details on the pipeline run, including the path to the directory on scratch where the rest of the files can be found.
+
+```
+## VariTAS version 0.7.0
+##  Date: 2018-04-26
+##  User: eholgers
+
+## Raw/intermediate files can be found in
+##  /scratch/DBC/BCRBIOIN/SHARED/analysis/NickTurner/VariTAS/data/thyroid
+```
+
+## Running the Full Pipeline
+
+In most cases, all steps in the pipeline can be executed with a single function call. `run.varitas.pipeline()` is the main function for launching the full pipeline. 
+
+By default, this will run all stages from alignment to post-processing. To start the pipeline at a later stage, adjust the `start.stage` argument of the function. Whatever start stage you provide must match the files provided in the `file.details` data frame. For example, if starting the pipeline at the variant annotation stage, the `file.details` data frame should contain paths to VCF files containing the variant calls, and be formatted in a way that passes the `verify.variant.specification()` check. 
+
+Running the `run.varitas.pipeline()` function will submit jobs for all stages at once, with appropriate job dependencies. To see which jobs that would be submitted, run `run.varitas.pipeline()` with the argument `quiet = TRUE`. This will print out all of the Perl calls instead of submitting them as system calls. Each Perl call corresponds to one job submitted to the cluster. 
+
+```{r, results = FALSE}
+
+```
+
+When starting the pipeline at a later stage, earlier jobs are dropped and job dependencies are adjusted accordingly.
+
+```{r, results = FALSE}
+vcf.specification$job.dependency <- NULL;
+
+run.varitas.pipeline(
+    file.details = vcf.specification,
+    output.directory = output.directory,
+    start.stage = 'annotation',
+    quiet = TRUE
+    );
+```
+
+The merging stage of the pipeline supports email notifications. As merging is the last stage of the pipeline, the email notification can be used to let you know when the pipeline run finishes. 
+
+```{r, results = FALSE}
+run.varitas.pipeline(
+    file.details = vcf.specification,
+    output.directory = output.directory,
+    start.stage = 'annotation',
+    email = 'Erle.Holgersen@icr.ac.uk',
+    quiet = TRUE
+    );
+```
+
+## Updating Settings {#settings}
+
+The VariTAS pipeline comes with a set of default options specified in the `config.yaml` file. These are loaded into R by default, and will enable you to run the pipeline. The settings include both cluster-specific settings that are unlikely to change once they have been set for your HPC system and run-specific settings that are more likely to change. Examples of run-specific settings are the target panel, sequencing platform, and variant filters. 
+
+In most cases you will want to make changes to the default settings. There are two ways of doing this.
+
+1. Create your own config file, and overwrite all config options with the `overwrite.varitas.options()` function. 
+
+2. Update individual options with the `set.varitas.options()` function.
+
+
+### Variant Filters
+
+Variant filters are specified as part of the settings. All these settings should start with the prefix `filters` (e.g. be nested under `filters` in the YAML file), and be further grouped by variant caller. For example, to set a MuTect-specific filter `FILTER_NAME`, use the command `set.varitas.options(filters.mutect.FILTER_NAME = TRUE)`. 
+
+To specify a filter for all variant callers, list them under `default` in the config YAML file. These filters are set first and overwritten by any caller-specific filters. For example, the YAML code below would set the `remove_exac` filter for all variant callers and a `min_tumour_depth` filter of 10 for all callers except VarDict. The VarDict minimum tumour depth filter is set to 20.
+
+```
+filters:
+  default:
+    min_tumour_depth: 10
+    remove_exac: true
+  vardict:
+    min_tumour_depth: 20
+```
+
+The `set.varitas.options()` function currently does not support default filters. These must be specified through a config YAML file that's passed to the `overwrite.varitas.options()` function.
+
+The table below describes all filters currently supported. Variants that do not meet all of these criteria will be filtered out. Note that filters with "normal" in the name are only applied if the samples are paired tumour/normal.
+
+|Name |Value |Description |
+|:------|:-----|:-------------------------------------------------|
+|min_tumour_variant_reads|numeric|Minimum number of reads supporting a variant|
+|max_normal_variant_reads|numeric|Maximum number of reads in supporting a variant in normal|
+|min_tumour_depth|numeric|Minimum depth in tumour|
+|min_normal_depth|numeric|Minimum depth in normal|
+|min_tumour_allele_frequency|numeric|Minimum tumour allele frequency|
+|max_normal_allele_frequency|numeric|Maximum normal allele frequency|
+|indel_min_tumour_allele_frequency|numeric|Minimum tumour allele frequency for indels|
+|min_quality|numeric|Minimum base quality|
+|ct_min_tumour_allele_frequency|numeric|Minimum tumour allele frequency for C>T mutations. Intended as an FFPE filter|
+|remove_1000_genomes|logical|Flag for removing all variants found in 1,000 genomes[^2]|
+|remove_exac|logical|Flag for removing variants found at AF>0.01 in the Exome Aggregation Consortium|
+|remove_germline_status|logical|Flag for removing all variants with a status field set to "Germline". Intended to be used with VarDict|
+
+To make it easier to specify filters, the pipeline comes with different sets of default options. These are split into defaults for ctDNA and solid tumours, and can be set by `mode: ctdna` and `mode: tumour`, respectively. Any filters specified separately will take precedence over the mode default settings.
+
+For example, the following YAML code will use the ctDNA default settings, but update the `min_tumour_variant_reads` filter to 20 for all callers.
+
+```
+mode: ctDNA
+filters:
+  default:
+    min_tumour_variant_reads: 20
+```
+
+#### Solid Tumour Mode
+
+The default settings for the solid tumour mode can be found in the `tumour_defaults.yaml` file in the package directory.
+
+```
+filters:
+  default:
+    min_normal_depth: 5
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.05
+    max_normal_allele_frequency: 0.02
+    ct_min_tumour_allele_frequency: 0.1
+    indel_min_tumour_allele_frequency: 0.1
+    remove_1000_genomes: true
+    remove_exac: true
+  vardict:
+    remove_germline_status: true
+```
+
+#### ctDNA Mode
+
+Defaults for variant calling on ctDNA can be found in the `ctdna_defaults.yaml` file. Due to low purity, variant allele frequencies in circulating DNA will typically be much lower than those in solid tumour samples. To allow for this, the minimum allele frequency filters are decreased. 
+
+```
+filters:
+  default:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    ct_min_tumour_allele_frequency: 0.05
+    indel_min_tumour_allele_frequency: 0.05
+    min_normal_depth: 5
+    max_normal_allele_frequency: 0
+    remove_1000_genomes: true
+    remove_exac: true
+  pgm:
+    indel_min_tumour_allele_frequency: 0.02
+  vardict:
+    remove_germline_status: true
+  isis:
+    indel_min_tumour_allele_frequency: 0.02
+```
+
+# Examples and Use Cases
+
+## Generic Wrapper Script {#examples}
+
+Any call to the VariTAS pipeline requires data to be passed in the form of a dataframe, so the easiest way to interact with it is to create a simple wrapper R script. The goals of the wrapper are to collect the relevant input files in a dataframe, change any necessary VariTAS options, and call the relevant pipeline function. 
+
+We can start by arranging the FASTQ files:
+
+```{r wrapper1}
+library(varitas)
+output.directory <- '.'
+
+fastq.directory <- 'inst/extdata/fastq'
+fastq.files <- list.files(
+  pattern = 'R1.*\\.fastq', 
+  path = fastq.directory, 
+  full.names = TRUE
+  )
+fastq.mate.files <- list.files(
+  pattern = 'R2.*\\.fastq', 
+  path = fastq.directory, 
+  full.names = TRUE
+  )
+
+fastq.specification <- data.frame(
+  # Extract the sample ID from the filename
+  sample.id = gsub('.*Sample0(\\d\\d).*', '\\1', basename(fastq.files)),
+  reads = fastq.files,
+  mates = fastq.mate.files,
+  stringsAsFactors = FALSE
+  )
+
+print(fastq.specification)
+```
+
+Often, you will need to change settings in the VariTAS config file. As shown in the Introduction, this can be done in one of two ways. The first is to use `set.varitas.options()` within your wrapper script like so:
+
+```{r wrapper2, eval=FALSE, results=FALSE}
+set.varitas.options(filters.vardict.min_tumour_depth = 10)
+```
+
+This is suitable for smaller changes, but it is usually more convenient to have a copy of the VariTAS config file for each project or run of the pipeline. This way, all of the settings that are unlikely to change can be easily set and other users will be able to clearly see the config options you used.
+
+```{r wrapper3, eval=FALSE, results=FALSE}
+config <- 'inst/extdata/varitas_config.yaml'
+overwrite.varitas.options(config)
+```
+
+Once the above steps are completed, you are ready to call the main function of the pipeline. 
+
+```{r wrapper4, eval=FALSE, results=FALSE}
+run.varitas.pipeline(
+    file.details = fastq.specification,
+    output.directory = output.directory,
+    variant.callers = c('mutect', 'vardict'),
+    quiet = FALSE,
+    run.name = 'EXAMPLE',
+    email = 'adam.mills@icr.ac.uk'
+    )
+```
+
+And those are all the necessary steps to run the pipeline. It will notify you by email when it is finished if you provide an address. On the first attempt, it is advisable to set the `quiet` parameter to `TRUE`, which prevents any of the tasks from running. This way, any potential problems can be fixed before a large number of jobs are created.
+
+A full wrapper script template is provided below for completeness and ease of copying-and-pasting.
+
+```{r wrapper5, eval=FALSE, results=FALSE}
+###############################################################################
+## VariTAS Wrapper Script
+##
+###############################################################################
+## Author:
+## Adam Mills
+###############################################################################
+## Libraries:
+library(varitas)
+###############################################################################
+## Main
+
+output.directory <- '.'
+
+fastq.directory <- 'inst/extdata/fastq'
+fastq.files <- list.files(
+  pattern = 'R1.*\\.fastq', 
+  path = fastq.directory, 
+  full.names = TRUE
+  )
+fastq.mate.files <- list.files(
+  pattern = 'R2.*\\.fastq', 
+  path = fastq.directory, 
+  full.names = TRUE
+  )
+
+fastq.specification <- data.frame(
+  sample.id = gsub('.*Sample0(\\d\\d).*', '\\1', basename(fastq.files)),
+  reads = fastq.files,
+  mates = fastq.mate.files,
+  stringsAsFactors = FALSE
+  )
+
+config <- 'inst/extdata/varitas_config.yaml'
+overwrite.varitas.options(config)
+
+run.varitas.pipeline(
+  file.details = fastq.specification,
+  output.directory = output.directory,
+  variant.callers = c('mutect', 'vardict'),
+  quiet = FALSE,
+  run.name = 'EXAMPLE',
+  email = 'adam.mills@icr.ac.uk'
+  )
+
+```
+
+## Variant Calling with Matched Normal
+
+Data from normal tissue can be used for matched somatic variant calling in the pipeline. When creating your FASTQ specification dataframe, include the columns `patient.id` and `tissue` and the pipeline will submit matched normal data to the variant callers. 
+
+```{r matched1}
+fastq.specification <- data.frame(
+  sample.id = gsub('.*Sample0(\\d\\d).*', '\\1', basename(fastq.files)),
+  patient.id = c('X', 'X', 'Y', 'Y'),
+  tissue = c('tumour', 'normal', 'tumour', 'normal'),
+  reads = fastq.files,
+  mates = fastq.mate.files,
+  stringsAsFactors = FALSE
+  )
+
+print(fastq.specification)
+```
+
+
+## Ion PGM Data
+
+Data produced by an Ion PGM system can also be processed by this pipeline using a different function. If you'd like to incorporate the variants called by the machine in the pipeline, simply pass both the BAM files and the VCF files into `run.varitas.pipeline.hybrid()`. Data from Ion Proton systems can be used in the same way by setting the `proton` parameter to `TRUE`.
+
+```{r hybrid1}
+bam.directory <- 'inst/extdata/bam'
+bam.files <- list.files(
+  pattern = 'Sample.*\\.bam', 
+  path = bam.directory, 
+  full.names = TRUE
+  )
+vcf.directory <- 'inst/extdata/vcf'
+vcf.files <- list.files(
+  pattern = 'Sample.*\\.vcf', 
+  path = vcf.directory, 
+  full.names = TRUE
+  )
+
+bam.specification <- data.frame(
+  sample.id = gsub('^Sample_(\\d+).*', '\\1', basename(bam.files)),
+  tumour.bam = bam.files,
+  stringsAsFactors = FALSE
+  )
+vcf.specification <- data.frame(
+  sample.id = gsub('^Sample_(\\d+).*', '\\1', basename(vcf.files)),
+  vcf = vcf.files,
+  caller = rep('pgm', length(vcf.files)),
+  stringsAsFactors = FALSE
+  )
+print(bam.specification)
+print(vcf.specification)
+```
+
+```{r hybrid2, eval=FALSE, results=FALSE}
+run.varitas.pipeline.hybrid(
+ 	bam.specification = bam.specification,
+ 	vcf.specification = vcf.specification,
+	output.directory = 'inst/extdata/output/',
+	proton = TRUE,
+	run.name = 'EXAMPLE',
+	quiet = FALSE,
+ 	email = 'adam.mills@icr.ac.uk'
+ 	);
+```
+
+In this version of the pipeline, the alignment stage is skipped and the Ion PGM variant data will be incorporated into the final reports. 
+
+## MiniSeq Data
+
+To enable users to quickly build file specifications for MiniSeq runs, the VariTAS pipeline has a function `prepare.miniseq.specifications()`. When passed a MiniSeq sample sheet and the path to a MiniSeq directory, the function will parse through the directory and look for FASTQ/ BAM/ VCF files for each of the samples. By default the `Sample_ID` column of the MiniSeq sample sheet, up to the first dash, is taken as the sample ID.
+
+`prepare.miniseq.specifications()` returns a list with elements corresponding to the different file types that have been found. For example, if VCF files were present in the VCF directory, a VCF specification will be named as `vcf` in the result. Note that you will have to add a column `caller` to the VCF specification before it can be used in the pipeline.
+
+```{r hybrid3}
+miniseq.sheet <- 'inst/extdata/miniseq/Example_template.csv'
+miniseq.directory <- 'inst/extdata/miniseq'
+
+miniseq.info <- prepare.miniseq.specifications(miniseq.sheet, miniseq.directory)
+fastq.specification <- miniseq.info[[ 1 ]]
+vcf.specification <- miniseq.info[[ 2 ]]
+vcf.specification['caller'] <- rep('miniseq', nrow(vcf.specification))
+
+print(fastq.specification)
+print(vcf.specification)
+```
+
+### Incorporating MiniSeq Variant Calls
+
+The dataframes generated by the `prepare.miniseq.specifications` function can be fed into the standard pipeline, or they can be used in the hybrid pipeline. In the latter case, you are able to pass the VCF files much like the Ion PGM scenario in Example 2. By doing so, the pipeline will include the MiniSeq variant calls in the final output.
+
+```{r hybrid4, eval=FALSE, results=FALSE}
+run.varitas.pipeline.hybrid(
+ 	fastq.specification = fastq.specification,
+ 	vcf.specification = vcf.specification,
+	output.directory = 'inst/extdata/output/',
+	run.name = 'EXAMPLE',
+	quiet = FALSE,
+ 	email = 'adam.mills@icr.ac.uk'
+ 	)
+```
+
+
+
+## References
+
+[^1]: Ion machines use SFF files, which are then converted back to FASTQ. This results in the loss of information on read quality. Another problem with aligning the Ion Torrent FASTQs is the distinct homopolymer error profiles of ion semiconductor sequencing. This is accounted for with the machine aligner, but not by BWA.
+[^2]: Data from phase 3 of the 1,000 genomes project is obtained through ANNOVAR.

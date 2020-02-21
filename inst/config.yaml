@@ -1,0 +1,147 @@
+# VariTAS pipeline config file
+#
+
+package_name: varitas
+
+### ANNOTATION SETTINGS
+
+annotation_method: GENCODE
+reference_build: grch37
+
+
+### VARIANT FILTERS
+
+# SUPPORTED FILTERS:
+#   min_tumour_depth, min_normal_depth
+#   min_tumour_variant_reads, max_normal_variant_reads
+#   min_tumour_allele_frequency, max_normal_allele_frequency
+#   ct_min_tumour_allele_frequency: a separate minimum tumour allele frequency applied to C>T substitutions (attempt to filter out FFPE artefacts)
+#   indel_min_tumour_allele_frequency: minimum allele frequency for indels
+#   remove_1000_genomes: remove anything that appears in the 1000 genomes project (useful when no normal filter available, e.g. for PGM output or unpaired calling)
+#   remove_germline_status: remove variants with STATUS field set to germline
+#
+# In the case of variant calling without normals, all filters with 'normal' in the
+# name will be ignored
+filters:
+  mutect:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.05
+    ct_min_tumour_allele_frequency: 0.01
+  pgm:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    remove_1000_genomes: true
+    ct_min_tumour_allele_frequency: 0.01
+    indel_min_tumour_allele_frequency: 0.02
+  vardict:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    ct_min_tumour_allele_frequency: 0.01
+    indel_min_tumour_allele_frequency: 0.02
+    remove_germline_status: true
+  varscan:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    remove_germline_status: true
+  lofreq:
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.01
+    remove_germline_status: true
+  consensus:
+    min_tumour_allele_frequency: 0.01
+    ct_min_tumour_allele_frequency: 0.01
+
+# Fields in final variant call output file
+# ANNOTATION_DB will be replaced by the annotation database in question (determined by annotation_method and reference_build)
+annovar_fields:
+  - CHROM
+  - POS
+  - REF
+  - ALT
+  - Func.ANNOTATION_DB
+  - ExonicFunc.ANNOTATION_DB
+  - Gene.ANNOTATION_DB
+  - AAChange.ANNOTATION_DB
+  - cosmic70
+  - 1000g2015aug_all
+  - cytoBand
+  - ExAC_nontcga_ALL
+  - CLNDBN
+  - STATUS
+  - QUAL
+  - SIFT_score
+  - Polyphen2_HDIV_score
+  - Interpro_domain
+
+annovar_genotype_fields:
+  - DP
+  - GT
+  - AF
+  - AD
+
+
+### SEQUENCING SETTINGS
+# should be either illumina or ION_TORRENT
+sequencing_platform: ION_TORRENT
+target_panel:
+
+# path to reference FASTA, Must have corresponding sequence dictionary
+reference_genome:
+  grch37: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh37/dna/UCSC/hg19.fa
+  grch38: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh38/dna/GRCh38.d1.vd1.fa
+barcode: CTTGTA
+
+### CLUSTER SETTINGS
+
+# Note: this num_cpu is probably just for a single job... rename or phase out
+num_cpu: 5
+project_code: DBCDOBZAK
+cluster_scheduler: LSF
+
+
+### APPLICATION SETTINGS
+
+# iDES
+ides_path: /scratch/DBC/BCRBIOIN/SHARED/software/iDES/v1.1/
+
+# Annovar (need to update database)
+annovar_path: /apps/annovar/20160201/
+annovar_database:
+  grch37: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh37/annovar/20170601/
+  grch38: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh38/annovar/20170601/
+
+# Version numbers for module loading
+#  – these must match available modules
+bwa_version: 0.7.12
+bedtools_version: 2.25.0
+java_version: sun8/1.8.0u66
+samtools_version: 1.5
+picardtools_version: 2.1.0
+vardictjava_version: 1.4.6
+fastqc_version: 0.11.4
+r_version: 3.5.0
+
+# Picard
+# want this to match version above
+picard_jar: /apps/picard-tools/2.1.0/picard.jar
+
+# GATK
+gatk_jar: /apps/gatk/4.0.5.1/gatk-package-4.0.5.1-local.jar
+
+# MuTect
+dbsnp_vcf: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh37/dbsnp/v138/00-common_all.chr.vcf
+cosmic_vcf: /scratch/DBC/BCRBIOIN/SHARED/genomes/homo_sapiens/GRCh37/cosmic/v82/CosmicCodingMuts.chr.vcf
+#-
+mutect_gatk_jar: /apps/gatk/4.0.5.1/gatk-package-4.0.5.1-local.jar
+
+# MuSE
+muse_path: /scratch/DBC/BCRBIOIN/amills/varitas/MuSE/MuSE
+
+# VarScan
+varscan_path: /scratch/DBC/BCRBIOIN/amills/varitas/VarScan.v2.4.3.jar
+
+# LoFreq
+lofreq_path: /scratch/DBC/BCRBIOIN/amills/varitas/lofreq_star-2.1.3.1/bin/lofreq
+
+# VarDict
+vardict_path: /scratch/DBC/BCRBIOIN/SHARED/software/VarDict/20170831/

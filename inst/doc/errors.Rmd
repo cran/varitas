@@ -1,0 +1,130 @@
+---
+title: "What Does This Error Mean?"
+author: "Adam Mills"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    theme: united
+    highlight: kate
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+  pdf_document:
+    toc: yes
+bibliography: references.bib
+vignette: >
+  %\VignetteIndexEntry{Errors}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = '../')
+
+```
+
+## The Purpose of This Guide
+
+As any bioinformatician knows, there are few things more frustrating than trying to understand how to use someone else's program. I struggled with this myself while working on this package. However, in the realm of scientific research, we must learn to appreciate the stringency of our frequently used tools. I will not tell you to ignore the various warnings and errors produced by VariTAS in this vignette, because they are essential to ensure that the pipeline produces statistically robust, reproducible results. 
+
+That being said, I empathise with the frustration of trying to use a new tool only to be met with a barrage of errors and incompatible data. So to minimise the amount of time you have to spend interpreting laconic error messages and resubmitting processes, I have written this guide. I hope that it helps to explain why these errors are thrown and more importantly, how to make them go away.
+
+## Verifying VariTAS Options
+
+These are errors thrown when the pipeline is verifying the various options and parameters submitted to it through the config file. This includes a number of 'file ____ does not exist'-type errors that I have omitted for what I hope are obvious reasons. 
+
+### The following stages are not supported: ____
+
+An incompatible stage has been submitted to the main pipeline function. The only supported stages are 'alignment', 'qc', 'calling', 'annotation', and 'merging'.
+
+#### Solution
+
+Ensure that the `start.stage` parameter is set to one of the allowed stages.
+
+### `varitas.options` must be a list of options or a string giving the path to the config YAML file
+
+Whatever you have tried to use as the VariTAS options file is incorrect. You shouldn't see this error if you're following the template in the Introduction vignette.
+
+#### Solution
+
+Ensure that you are pointing to the correct file when submitting it to `overwrite.varitas.options`. It should be based on the `config.yaml` file contained in the `inst` directory of this package.
+
+### config must include `reference_build`
+
+There must be a `reference_build` parameter set somewhere in the config file so that the script knows which version of the genome you are using. This setting is present in the `config.yaml` file found in the `inst` directory of this package.
+
+#### Solution
+
+Add a parameter to the config file called `reference_build` and make sure it's set to either 'grch37' or 'grch38' (anything else will cause you to run into the next error).
+
+### `reference_build` must be either grch37 or grch38
+
+The `reference_build` parameter in the config file can only be set to either 'grch37' or 'grch38', which are the two versions of the human genome supported by the pipeline. See also the previous error.
+
+#### Solution
+
+Ensure that `reference_build` is set to your version of the genome, in the form of either 'grch37' or 'grch38'.
+
+### Reference genome file ____ does not have extension .fa or .fasta
+
+Only reference genomes in the FASTA format are supported by the various tools used in this pipeline. Of course, your genome might already be in FASTA format with a different file extension, but it's better to be sure.
+
+#### Solution
+
+Use a reference in FASTA format with the .fa or .fasta file extension.
+
+### `target_panel` must be provided for alignment and variant calling stages
+
+As VariTAS is meant to be run on data from amplicon sequencing experiments, some of the stages require a file detailing the target panel. This should be in the form of a BED file, the format of which is described [here](https://www.ensembl.org/info/website/upload/bed.html). 
+
+#### Solution
+
+Ensure that you have a properly formatted BED file supplied as the `target_panel` parameter in the config file. 
+
+### Mismatch between reference genome and target panel
+
+Followed by "Reference genome chromosomes: \____ Target panel chromosomes: \____". This error probably looks familiar if you've ever had the great priviledge of working with GATK. Essentially, the chromosomes listed in your target panel don't match up with those in the reference genome. In practice, it means you have one or more chromosomes in the target panel that are not in the reference.
+
+#### Solution
+
+This issue can arise from a few different places, so be sure to check that it's not something very simple first.
+
+1. There is too much whitespace at the end of the target panel BED file. In this case, simply delete the empty lines at the bottom of the file. This is probably the cause if the chromosome names otherwise seem identical.
+2. Your chromosomes have names like 'chr1, chr2, chr3, etc.' in one file and '1, 2, 3' in the other file. This is likely the case if your target panel and reference genome are from different builds/assemblies of the human genome. To resolve this, either liftover the BED file using a utilty like [liftOver](https://genome.ucsc.edu/cgi-bin/hgLiftOver) to convert it the correct reference build or (if you're sure they refer to the same build) edit your BED file so that the chromosome names match those in the reference file.
+
+### Target panel must contain gene/feature IDs in the 5th or 6th column In the format of GENE_ID=...;etc.
+
+Hmmmm
+
+#### Solution
+
+mmm
+
+### Index files not found for reference genome file ____ - try running bwa index.
+
+This issue and the next two are related to preparing the reference genome file. Various tools require that large FASTA files are indexed and have sequence dictionaries so that they can be parsed quickly. Once you fix these issues, they shouldn't come up again as long as the index files are in the same directory as the reference.
+
+#### Solution
+
+Run `bwa index` on the indicated file.
+
+### Sequence dictionary not found for file ____ - try running GATK CreateSequenceDictionary.
+
+See above
+
+#### Solution
+
+Run `gatk CreateSequenceDictionary` on the indicated file.
+
+### Fasta index file not found for file ____ Try running samtools faidx.
+
+See above (x2)
+
+#### Solution
+
+Run `samtools faidx` on the indicated file.
+
+
+
+

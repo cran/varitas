@@ -1,0 +1,18 @@
+# Default filter settings for mode: tumour
+#
+# Filters supplied under default are used as the baseline for all callers
+# any filters specified under a specific caller will take precedence over
+# the default filters
+#
+filters:
+  default:
+    min_normal_depth: 5
+    min_tumour_variant_reads: 5
+    min_tumour_allele_frequency: 0.05
+    max_normal_allele_frequency: 0.02
+    ct_min_tumour_allele_frequency: 0.1
+    indel_min_tumour_allele_frequency: 0.1
+    remove_1000_genomes: true
+    remove_exac: true
+  vardict:
+    remove_germline_status: true

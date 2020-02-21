@@ -1,0 +1,241 @@
+====================================================================
+`7MMF'   `7MF'                 db MMP""MM""YMM   db       .M"""bgd
+  `MA     ,V                      P'   MM   `7  ;MM:     ,MI    "Y
+   VM:   ,V ,6"Yb.  `7Mb,od8 `7MM      MM      ,V^MM.    `MMb.
+    MM.  M'8)   MM    MM' "'   MM      MM     ,M  `MM      `YMMNq.
+    `MM A'  ,pm9MM    MM       MM      MM     AbmmmqMA   .     `MM
+     :MM;  8M   MM    MM       MM      MM    A'     VML  Mb     dM
+      VF   `Moo9^Yo..JMML.   .JMML.  .JMML..AMA.   .AMMA.P"Ybmmd"
+====================================================================
+
+TODO/ WISHLIST:
+- Add more verification for BED file input
+- Remove paired percent chart if data is not paired
+- Add voting table to report
+- Sample IDs with a dash in the name do not work (possibly multiple dashes)
+
+VariTAS 	(2019-11-05)					                        v0.8.1
+--------------------------------------------------------------
+- LoFreq should now call indels
+- Added dbSNP filtering to LoFreq
+- Added -s (source quality) parameter to LoFreq, should increase accuracy
+
+VariTAS 	(2019--)					                        v0.8.0
+--------------------------------------------------------------
+- Added extra margin to output plots for longer sample names
+
+VariTAS 	(2019-05-06)					                        v0.8.0
+--------------------------------------------------------------
+- Upgraded to GATK4 throughout pipeline
+- targetQC step interacts better with job dependencies
+- Fixed text at bottom of report
+- Charts now sorted by coverage
+- Added more CPUs to VarDict commands
+- MuTect and VarDict should run on ontarget.bam rather than source bam (hybrid)
+- Fix flagstat with paired normal data
+- Fix "empty" normal samples appearing in report
+
+VariTAS 	(2019-03-11)					                        v0.7.3
+--------------------------------------------------------------
+- Fancy new logo
+- Fixed coverage report bugs
+- Fixed median coverage plot and adjusted all plot margins
+- GATK commands updated to work with GATK4
+
+VariTAS 	(2019-03-01)					                        v0.7.2
+--------------------------------------------------------------
+- Bugfixes for LoFreq and VarScan
+- New helper functions to post-process LoFreq and VarScan output
+- New WIP vignette: What Does This Error Mean? to help with learning how to use VariTAS
+
+VariTAS 	(2019-02-07)					                        v0.7.1
+--------------------------------------------------------------
+- Added support for LoFreq and VarScan, two matched-normal variant callers
+
+VariTAS 	(2018-12-11)					                        v0.7.0
+--------------------------------------------------------------
+- Rebranded as VariTAS
+- New style for plotting coverage by amplicon
+- Added requirement for gene/feature ID in panel file
+- Improved compatibility for GRCh38
+
+BCN.AmpliSeq.utilities 	(2018-11-14)					          v0.6.3
+--------------------------------------------------------------
+- Retooled vignettes, now there is only one
+- Moved example files to inst/extdata
+- Bugfixes for HPC cross-compatibility
+
+
+BCN.AmpliSeq.utilities 	(2018-11-09)					          v0.6.2
+--------------------------------------------------------------
+- New function run.all.scripts to handle running the pipeline on a non-HPC system
+- Small changes to other scripts to accomodate this
+- Added vignette of examples
+
+
+BCN.AmpliSeq.utilities 	(2018-11-06)					          v0.6.1
+--------------------------------------------------------------
+- Updated vignette and description details
+- Minor bugfix in read.variant.calls
+- Added read.yaml to helper.functions to remove lab utils package dependency
+
+
+BCN.AmpliSeq.utilities 	(2018-10-30)					          v0.6.0
+--------------------------------------------------------------
+- Added support for single-sample runs in post-processing scripts
+- Added config option for different HPC systems (LSF [bsub], PBS [qsub], or none)
+
+
+BCN.AmpliSeq.utilities 	(2018-08-21)					          v0.5.1
+--------------------------------------------------------------
+- removed BCN.general.utilities dependency by copying over date.stamp.file.name
+
+
+BCN.AmpliSeq.utilities 	(2018-08-17)					          v0.5.0
+--------------------------------------------------------------
+- removed plotting lib dependency
+
+
+BCN.AmpliSeq.utilities 	(2018-05-11)					          v0.4.3
+--------------------------------------------------------------
+- debugging after coding standard updates
+- include filters for all variant callers in variant specification in variant Excel sheet
+- added mean tumour AF column
+
+
+BCN.AmpliSeq.utilities 	(2018-05-10)					          v0.4.2
+--------------------------------------------------------------
+- module load R version in post-processing script
+
+
+BCN.AmpliSeq.utilities 	(2018-04-27)					          v0.4.1
+--------------------------------------------------------------
+- lots of documentation/ minor code updates to comply with package standards
+
+BCN.AmpliSeq.utilities 	(2018-04-26)					          v0.4.0
+--------------------------------------------------------------
+- new "mode" option for setting filters
+- added support for pan-caller specification of variant filters through the "default" filter
+
+BCN.AmpliSeq.utilities 	(2018-04-24)					          v0.3.4
+--------------------------------------------------------------
+- added remove_exac filter to remove all ExAC variants at AF>0.01
+- new get.gene function to guess gene from panel
+
+
+BCN.AmpliSeq.utilities 	(2018-04-23)					          v0.3.3
+--------------------------------------------------------------
+- bugfixes in run.target.qc function
+- get.bed.chromosomes: remove header lines starting with "track"
+- bugfixed vignette
+
+
+BCN.AmpliSeq.utilities 	(2018-03-08)					          v0.3.2
+--------------------------------------------------------------
+- bugfixes to accommodate purely numeric sample IDs
+
+
+BCN.AmpliSeq.utilities 	(2018-03-08)					          v0.3.1
+--------------------------------------------------------------
+- added option for email notification when pipeline finishes
+- bugfixed reading of MiniSeq sample sheet
+- new MiniSeq section in vignette
+
+
+BCN.AmpliSeq.utilities 	(2018-03-01)					          v0.3.0
+--------------------------------------------------------------
+- moved all version numbers to config
+- restructured output to only send PDF report to collaborators
+  by default
+
+
+BCN.AmpliSeq.utilities 	(2018-02-22)					          v0.2.6
+--------------------------------------------------------------
+- added plot of median coverage by amplicon
+
+
+BCN.AmpliSeq.utilities 	(2018-02-20)					          v0.2.5
+--------------------------------------------------------------
+- more plots, and tweaks to existing ones
+
+
+BCN.AmpliSeq.utilities 	(2018-02-19)					          v0.2.4
+--------------------------------------------------------------
+- removed X11 dependency of PDF report
+
+
+BCN.AmpliSeq.utilities 	(2018-02-16)					          v0.2.3
+--------------------------------------------------------------
+- incorporated PDF report
+
+
+BCN.AmpliSeq.utilities 	(2018-01-29)					          v0.2.2
+--------------------------------------------------------------
+- added per sample scatterplots of coverage per amplicon
+
+
+BCN.AmpliSeq.utilities 	(2018-01-25)					          v0.2.1
+--------------------------------------------------------------
+- added prepare.miniseq.specifications to get sample IDs from MiniSeq sample sheet
+
+
+BCN.AmpliSeq.utilities 	(2018-01-16)					          v0.2.0
+--------------------------------------------------------------
+- added run.name argument to accommodate simultaneous running
+  of different datasets with the same sample IDs
+- new diagnostic plot showing proportion of paired reads
+
+
+BCN.AmpliSeq.utilities 	(2018-01-15)					          v0.1.8
+--------------------------------------------------------------
+- fixed paired-end reads bug
+
+
+BCN.AmpliSeq.utilities 	(2017-12-14)					          v0.1.7
+--------------------------------------------------------------
+- bug fix to accommodate wider range of MiniSeq sample IDs
+
+
+BCN.AmpliSeq.utilities 	(2017-11-29)					          v0.1.6
+--------------------------------------------------------------
+- added variant recurrence plots
+- changed ontarget percent and mean coverage scatterplots to barplots
+- fixed a few bugs
+
+
+BCN.AmpliSeq.utilities 	(2017-11-29)					          v0.1.5
+--------------------------------------------------------------
+- more bug fixes
+- efforts to accommodate isis variant calls
+
+
+BCN.AmpliSeq.utilities 	(2017-11-28)					          v0.1.4
+--------------------------------------------------------------
+- bug fixes
+- added isis-specific variant annotation script that does not remove biallelic variants
+
+
+BCN.AmpliSeq.utilities 	(2017-11-24)					          v0.1.3
+--------------------------------------------------------------
+- bug fixes and other incremental improvements
+- implemented isis filters
+- added coverage by sample plots
+- added sleep option to post.processing step
+
+
+BCN.AmpliSeq.utilities 	(2017-11-23)					          v0.1.2
+--------------------------------------------------------------
+- more bug fixes
+- updates to variants per sample barplot to accommodate larger datasets
+- incorporated target QC as a stage in main pipeline
+- added run.ampliseq.pipeline.hybrid function
+
+
+BCN.AmpliSeq.utilities 	(2017-11-22)					          v0.1.1
+--------------------------------------------------------------
+- bug fixes
+
+
+BCN.AmpliSeq.utilities 	(2017-11-22)					           v0.1.0
+--------------------------------------------------------------
+- debuting Resources/R version of the package
