@@ -1002,8 +1002,10 @@ date.stamp.file.name <- datestamp.file.name <- datestamp.filename <- function(
 #' 
 #' @return list containing contents of yaml file 
 #' 
-#'
-#'
+#' @examples
+#' read.yaml(file.path(path.package('varitas'), 'config.yaml'))
+#' 
+#' @export
 #'
 read.yaml <- function(file.name) {
   
@@ -1180,6 +1182,8 @@ fix.lofreq.af <- function(variant.specification) {
     try(annovar.table["TUMOUR.DP"] <- DP, silent = TRUE)
     try(annovar.table["TUMOUR.AF"] <- AF, silent = TRUE)
     try(annovar.table["TUMOUR.AD"] <- AD, silent = TRUE)
+    # Remove duplicated variants (happens when BED regions overlap)
+    annovar.table <- annovar.table[!duplicated(annovar.table[,1:4]),]
     if ( single.file ) {
       utils::write.table(annovar.table, file = as.character(annotated.files[i]), sep = '\t', quote = FALSE)
     } else {

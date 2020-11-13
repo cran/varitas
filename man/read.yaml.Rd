@@ -15,3 +15,7 @@ list containing contents of yaml file
 \description{
 Read a yaml file
 }
+\examples{
+read.yaml(file.path(path.package('varitas'), 'config.yaml'))
+
+}

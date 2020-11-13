@@ -91,6 +91,7 @@ my $lofreq = $config->{lofreq_path};
 my $dbsnp = $config->{germline_vcf};
 my $bed_file = $config->{target_panel};
 my $bam_dir = dirname($tumour_bam);
+my $platform = $config->{sequencing_platform};
 
 # Module load versions
 my $samtools = "samtools/$config->{samtools_version}";
@@ -157,6 +158,21 @@ END
   $cluster_settings = ""
 }
 
+## Enable lofreq viterbi only for illumina data
+if( $platform eq "illumina" ) {
+  if( $paired ) {
+    my $viterbi = "${lofreq} viterbi -f ${reference_genome} ${normal_bam} | samtools sort - -@ 5 -o ${sample_id}_normal_ready.bam; ${lofreq} viterbi -f ${reference_genome} ${tumour_bam} | samtools sort - -@ 5 -o ${sample_id}_tumour_ready.bam"
+  } else {
+    my $viterbi = "${lofreq} viterbi -f ${reference_genome} ${tumour_bam} | samtools sort - -@ 5 -o ${sample_id}_tumour_ready.bam"
+  }
+} else {
+  if( $paired ) {
+    my $viterbi = "cp ${normal_bam} ${sample_id}_normal_ready.bam; cp ${tumour_bam} ${sample_id}_tumour_ready.bam"
+  } else {
+    my $viterbi = "cp ${tumour_bam} ${sample_id}_tumour_ready.bam"
+  }
+}
+
 
 #SCRIPT
 my $sample_lofreq_script="${code_directory}/${job_name}.sh";
@@ -172,8 +188,11 @@ module load ${samtools}
 mkdir -p ${output_directory} ${log_directory} ${code_directory}
 
 cd ${bam_dir}
-${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_normal_indel.bam ${normal_bam}
-${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_tumour_indel.bam ${tumour_bam}
+
+${viterbi}
+
+${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_normal_indel.bam ${sample_id}_normal_ready.bam
+${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_tumour_indel.bam ${sample_id}_tumour_ready.bam
 samtools index ${sample_id}_normal_indel.bam
 samtools index ${sample_id}_tumour_indel.bam
 
@@ -202,7 +221,10 @@ module load ${samtools}
 mkdir -p ${output_directory} ${log_directory} ${code_directory}
 
 cd ${bam_dir}
-${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_tumour_indel.bam ${tumour_bam}
+
+${viterbi}
+
+${lofreq} indelqual --dindel -f ${reference_genome} --out ${sample_id}_tumour_indel.bam ${sample_id}_tumour_ready.bam
 samtools index ${sample_id}_tumour_indel.bam
 
 cd ${output_directory}
@@ -212,8 +234,6 @@ ${lofreq} call-parallel \\
 --pp-threads ${num_cpu} \\
 --call-indels \\
 -d ${dbsnp} \\
--s \\
--S ${dbsnp} \\
 -o ${output_filename}_dup \\
 -l ${bed_file} \\
 ${bam_dir}/${sample_id}_tumour_indel.bam

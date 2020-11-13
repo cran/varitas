@@ -242,7 +242,10 @@ VarDict -G $reference_genome \\
 $config->{target_panel} \\
 | $vardict_path/testsomatic.R \\
 | $vardict_path/var2vcf_paired.pl \\
--N \"TUMOUR|NORMAL\"  -f $af_threshold > ${output_directory}/${output_filename}
+-N \"TUMOUR|NORMAL\"  -f $af_threshold > ${output_directory}/all_variants.vcf
+
+awk '\$0 !~ /STATUS=Germline/' ${output_directory}/all_variants.vcf > ${output_directory}/${output_filename} 
+
 
 EOF
 

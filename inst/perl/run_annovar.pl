@@ -144,7 +144,7 @@ my $annovar_genotype_string = "-GF " . join( " -GF ", @annovar_genotype_fields);
 my @header_fields = (@parsed_annovar_fields, @annovar_genotype_fields); 
 my $header_string = join( "\t", @header_fields ); 
 
-my $annovar_protocol = " -protocol $annotation_db,cytoBand,cosmic70,1000g2015aug_all,exac03nontcga,clinvar_20170130,nci60,icgc21,dbnsfp30a,dbnsfp31a_interpro -operation g,r,f,f,f,f,f,f,f,f -nastring .";
+my $annovar_protocol = " -protocol $annotation_db,cytoBand,cosmic70,1000g2015aug_all,exac03nontcga,clinvar_20170130,nci60,icgc21,dbnsfp30a,dbnsfp31a_interpro,gnomad_genome -operation g,r,f,f,f,f,f,f,f,f,f -nastring .";
 
 ## JOB DEPENDENCIES
 

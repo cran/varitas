@@ -93,14 +93,6 @@ This issue can arise from a few different places, so be sure to check that it's 
 1. There is too much whitespace at the end of the target panel BED file. In this case, simply delete the empty lines at the bottom of the file. This is probably the cause if the chromosome names otherwise seem identical.
 2. Your chromosomes have names like 'chr1, chr2, chr3, etc.' in one file and '1, 2, 3' in the other file. This is likely the case if your target panel and reference genome are from different builds/assemblies of the human genome. To resolve this, either liftover the BED file using a utilty like [liftOver](https://genome.ucsc.edu/cgi-bin/hgLiftOver) to convert it the correct reference build or (if you're sure they refer to the same build) edit your BED file so that the chromosome names match those in the reference file.
 
-### Target panel must contain gene/feature IDs in the 5th or 6th column In the format of GENE_ID=...;etc.
-
-Hmmmm
-
-#### Solution
-
-mmm
-
 ### Index files not found for reference genome file ____ - try running bwa index.
 
 This issue and the next two are related to preparing the reference genome file. Various tools require that large FASTA files are indexed and have sequence dictionaries so that they can be parsed quickly. Once you fix these issues, they shouldn't come up again as long as the index files are in the same directory as the reference.

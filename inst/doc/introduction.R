@@ -1,8 +1,8 @@
-## ----setup, include=FALSE------------------------------------------------
+## ----setup, include=FALSE-----------------------------------------------------
 knitr::opts_knit$set(root.dir = '../')
 
 
-## ----fastq---------------------------------------------------------------
+## ----fastq--------------------------------------------------------------------
 library(varitas);
 
 output.directory <- '';
@@ -17,7 +17,7 @@ fastq.specification <- data.frame(
 
 print(fastq.specification);
 
-## ----alignment, results="hide"-------------------------------------------
+## ----alignment, results="hide"------------------------------------------------
 matched.bam.specification <- run.alignment(
     fastq.specification = fastq.specification, 
     output.directory = output.directory, 
@@ -25,10 +25,10 @@ matched.bam.specification <- run.alignment(
     quiet = TRUE # only for testing, does not submit jobs to cluster
     );
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 print(matched.bam.specification);
 
-## ----variants1-----------------------------------------------------------
+## ----variants1----------------------------------------------------------------
 unmatched.bam.specification <- data.frame(
     sample.id = c('Z', 'Y'), 
     tumour.bam = c('Z.bam', 'Y.bam')
@@ -36,7 +36,7 @@ unmatched.bam.specification <- data.frame(
 
 print(unmatched.bam.specification);
 
-## ----variants2, results = FALSE------------------------------------------
+## ----variants2, results = FALSE-----------------------------------------------
 vcf.specification <- run.variant.calling(
     matched.bam.specification, 
     output.directory = output.directory, 
@@ -44,30 +44,30 @@ vcf.specification <- run.variant.calling(
     quiet = TRUE # only for testing, does not submit jobs to cluster
     );
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 print(vcf.specification);
 
-## ---- results = FALSE----------------------------------------------------
+## ---- results = FALSE---------------------------------------------------------
 variant.specification <- run.annotation(
     vcf.specification, 
     output.directory = output.directory, 
     quiet = TRUE # testing only
     );
 
-## ---- eval = FALSE-------------------------------------------------------
+## ---- eval = FALSE------------------------------------------------------------
 #  print(variant.specification);
 
-## ---- results = FALSE----------------------------------------------------
+## ---- results = FALSE---------------------------------------------------------
 run.post.processing(
 	variant.specification = variant.specification, 
 	output.directory = output.directory, 
 	quiet = TRUE
 	);
 
-## ---- results = FALSE----------------------------------------------------
+## ---- results = FALSE---------------------------------------------------------
 
 
-## ---- results = FALSE----------------------------------------------------
+## ---- results = FALSE---------------------------------------------------------
 vcf.specification$job.dependency <- NULL;
 
 run.varitas.pipeline(
@@ -77,16 +77,16 @@ run.varitas.pipeline(
     quiet = TRUE
     );
 
-## ---- results = FALSE----------------------------------------------------
+## ---- results = FALSE---------------------------------------------------------
 run.varitas.pipeline(
     file.details = vcf.specification,
     output.directory = output.directory,
     start.stage = 'annotation',
-    email = 'Erle.Holgersen@icr.ac.uk',
+    email = 'sid@pid.ac.uk',
     quiet = TRUE
     );
 
-## ----wrapper1------------------------------------------------------------
+## ----wrapper1-----------------------------------------------------------------
 library(varitas)
 output.directory <- '.'
 
@@ -112,24 +112,24 @@ fastq.specification <- data.frame(
 
 print(fastq.specification)
 
-## ----wrapper2, eval=FALSE, results=FALSE---------------------------------
+## ----wrapper2, eval=FALSE, results=FALSE--------------------------------------
 #  set.varitas.options(filters.vardict.min_tumour_depth = 10)
 
-## ----wrapper3, eval=FALSE, results=FALSE---------------------------------
+## ----wrapper3, eval=FALSE, results=FALSE--------------------------------------
 #  config <- 'inst/extdata/varitas_config.yaml'
 #  overwrite.varitas.options(config)
 
-## ----wrapper4, eval=FALSE, results=FALSE---------------------------------
+## ----wrapper4, eval=FALSE, results=FALSE--------------------------------------
 #  run.varitas.pipeline(
 #      file.details = fastq.specification,
 #      output.directory = output.directory,
 #      variant.callers = c('mutect', 'vardict'),
 #      quiet = FALSE,
 #      run.name = 'EXAMPLE',
-#      email = 'adam.mills@icr.ac.uk'
+#      email = 'sid@pid.ac.uk'
 #      )
 
-## ----wrapper5, eval=FALSE, results=FALSE---------------------------------
+## ----wrapper5, eval=FALSE, results=FALSE--------------------------------------
 #  ###############################################################################
 #  ## VariTAS Wrapper Script
 #  ##
@@ -172,11 +172,11 @@ print(fastq.specification)
 #    variant.callers = c('mutect', 'vardict'),
 #    quiet = FALSE,
 #    run.name = 'EXAMPLE',
-#    email = 'adam.mills@icr.ac.uk'
+#    email = 'sid@pid.ac.uk'
 #    )
 #  
 
-## ----matched1------------------------------------------------------------
+## ----matched1-----------------------------------------------------------------
 fastq.specification <- data.frame(
   sample.id = gsub('.*Sample0(\\d\\d).*', '\\1', basename(fastq.files)),
   patient.id = c('X', 'X', 'Y', 'Y'),
@@ -188,7 +188,7 @@ fastq.specification <- data.frame(
 
 print(fastq.specification)
 
-## ----hybrid1-------------------------------------------------------------
+## ----hybrid1------------------------------------------------------------------
 bam.directory <- 'inst/extdata/bam'
 bam.files <- list.files(
   pattern = 'Sample.*\\.bam', 
@@ -216,7 +216,7 @@ vcf.specification <- data.frame(
 print(bam.specification)
 print(vcf.specification)
 
-## ----hybrid2, eval=FALSE, results=FALSE----------------------------------
+## ----hybrid2, eval=FALSE, results=FALSE---------------------------------------
 #  run.varitas.pipeline.hybrid(
 #   	bam.specification = bam.specification,
 #   	vcf.specification = vcf.specification,
@@ -224,10 +224,10 @@ print(vcf.specification)
 #  	proton = TRUE,
 #  	run.name = 'EXAMPLE',
 #  	quiet = FALSE,
-#   	email = 'adam.mills@icr.ac.uk'
+#   	email = 'sid@pid.ac.uk'
 #   	);
 
-## ----hybrid3-------------------------------------------------------------
+## ----hybrid3------------------------------------------------------------------
 miniseq.sheet <- 'inst/extdata/miniseq/Example_template.csv'
 miniseq.directory <- 'inst/extdata/miniseq'
 
@@ -239,13 +239,13 @@ vcf.specification['caller'] <- rep('miniseq', nrow(vcf.specification))
 print(fastq.specification)
 print(vcf.specification)
 
-## ----hybrid4, eval=FALSE, results=FALSE----------------------------------
+## ----hybrid4, eval=FALSE, results=FALSE---------------------------------------
 #  run.varitas.pipeline.hybrid(
 #   	fastq.specification = fastq.specification,
 #   	vcf.specification = vcf.specification,
 #  	output.directory = 'inst/extdata/output/',
 #  	run.name = 'EXAMPLE',
 #  	quiet = FALSE,
-#   	email = 'adam.mills@icr.ac.uk'
+#   	email = 'sid@pid.ac.uk'
 #   	)
 

@@ -171,7 +171,7 @@ mkdir -p ${output_directory} ${log_directory} ${code_directory}
 cd ${output_directory}
 
 # Create mpileup
-samtools mpileup -f ${reference_genome} -d 9999 ${normal_bam} ${tumour_bam} > ${output_directory}/${sample_id}.mpileup
+samtools mpileup -B -f ${reference_genome} -d 9999 ${normal_bam} ${tumour_bam} > ${output_directory}/${sample_id}.mpileup
 
 # Run VarScan
 java -jar ${varscan} somatic ${output_directory}/${sample_id}.mpileup \\
@@ -181,7 +181,9 @@ varscan \\
 --output-vcf 1
 
 # Combine indel and SNV outputs
-cat varscan.snp.vcf <(tail -n +19 varscan.indel.vcf) > ${output_filename}
+cat varscan.snp.vcf <(tail -n +19 varscan.indel.vcf) > all_variants.vcf
+
+awk '\$0 ~ /(#|SOMATIC)/' all_variants.vcf > ${output_filename}
 
 EOF
 
@@ -195,7 +197,7 @@ mkdir -p ${output_directory} ${log_directory} ${code_directory}
 cd ${output_directory}
 
 # Create mpileup
-samtools mpileup -f ${reference_genome} -d 9999 ${tumour_bam} > ${output_directory}/${sample_id}.mpileup
+samtools mpileup -B -f ${reference_genome} -d 9999 ${tumour_bam} > ${output_directory}/${sample_id}.mpileup
 
 # Run VarScan
 java -jar ${varscan} mpileup2cns ${sample_id}.mpileup \\

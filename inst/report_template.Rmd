@@ -123,7 +123,7 @@ caller.results <- lapply(
     variants = filtered.variants
 );
 
-names(caller.results) <- varitas::capitalize.caller(unique.callers);
+names(caller.results) <- varitas:::capitalize.caller(unique.callers);
 
 # turn off log files
 futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger");

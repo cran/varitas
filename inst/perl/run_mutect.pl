@@ -95,6 +95,7 @@ my $reference_genome = $config->{ reference_genome }->{ $reference_build };
 my $germline_vcf = $config->{ germline_vcf };
 my $target_panel = $config->{ target_panel };
 my $gatk_jar = $config->{ gatk_jar };
+my $platform = $config->{ sequencing_platform };
 
 # cluster settings
 my $num_cpu = $config->{num_cpu};
@@ -187,6 +188,18 @@ module load $samtools $java;
 
 mkdir -p ${output_directory} ${log_directory} ${code_directory}
 
+EOF
+
+if ( $platform eq "illumina" ) {
+print OUT <<EOF;
+# STEP 0: Analyse input data for downstream filtering
+java -Xmx64g \\
+-Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
+CollectSequencingArtifactMetrics \\
+-I ${tumour_bam} \\
+-O ${output_directory}/${sample_id}.tumour_artefact \\
+-R $reference_genome
+
 # STEP 1: run MuTect
 # - input: tumour (and possibly normal) BAM
 # - output: variant file
@@ -207,7 +220,63 @@ java -Xmx64g -Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
 	FilterMutectCalls \\
   -V ${output_directory}/$sample_id.vcf \\
   -O ${output_directory}/$sample_id.filter.vcf
-  
+
+
+# STEP 2.5: Filter strand bias effects (FFPE-induced deamination and OxoG)
+java -Xmx64g \\
+-Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
+FilterByOrientationBias \\
+-AM G/T \\
+-AM C/T \\
+-V ${output_directory}/$sample_id.filter.vcf \\
+-P ${output_directory}/$sample_id.tumour_artefact.pre_adapter_detail_metrics \\
+-O ${output_directory}/$sample_id.twice_filtered.vcf
+
+# STEP 3: remove all variants not flagged as "passed"
+#  input: variant VCF 
+#  output: VCF with variants that passed filter
+java -Xmx64g -Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
+	SelectVariants \\
+	-R $reference_genome \\
+	-V ${output_directory}/$sample_id.twice_filtered.vcf \\
+	-O ${output_directory}/$sample_id.passed.vcf \\
+	--exclude-filtered 
+
+# STEP 4: remove off-target variants
+# - input: VCF with passed variants
+# - output: ontarget and passed variant VCF
+#	* OUTPUT_FILENAME
+java -Xmx64g -jar $gatk_jar \\
+   SelectVariants \\
+   -R $reference_genome \\
+   -V ${output_directory}/$sample_id.passed.vcf \\
+   -O ${output_directory}/${output_filename} \\
+   -L ${target_panel} 
+
+EOF
+} else {
+print OUT <<EOF;
+# STEP 1: run MuTect
+# - input: tumour (and possibly normal) BAM
+# - output: variant file
+#	* SAMPLE_ID.vcf
+java -Xmx64g \\
+-Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
+Mutect2 \\
+-I ${tumour_bam} ${normal_bam_string} \\
+-tumor ${sample_id} ${normal_rg_string} \\
+--germline-resource ${germline_vcf} \\
+-R $reference_genome \\
+-O ${output_directory}/$sample_id.vcf \\
+
+# STEP 2: Filter variants
+#  input: variant VCF 
+#  output: Variants with filtering flags set
+java -Xmx64g -Djava.io.tmpdir=${output_directory} -jar $gatk_jar \\
+	FilterMutectCalls \\
+  -V ${output_directory}/$sample_id.vcf \\
+  -O ${output_directory}/$sample_id.filter.vcf
+
 # STEP 3: remove all variants not flagged as "passed"
 #  input: variant VCF 
 #  output: VCF with variants that passed filter
@@ -230,6 +299,7 @@ java -Xmx64g -jar $gatk_jar \\
    -L ${target_panel} 
 
 EOF
+}
 	close(OUT);
 if ($cluster_scheduler eq "LSF") {
   system("bsub < $sample_mutect_script");

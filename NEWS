@@ -14,14 +14,34 @@ TODO/ WISHLIST:
 - Add voting table to report
 - Sample IDs with a dash in the name do not work (possibly multiple dashes)
 
+VariTAS 	(2020-11-03)					                        v0.0.2
+--------------------------------------------------------------
+- Removed names from vignettes
+
+VariTAS 	(2020-08-03)					                        v0.0.2
+--------------------------------------------------------------
+- Added recommended -B parameter to mpileups for Varscan
+- Vardict now filters out germline variants with an awk command
+- VarScan now filters out germline variants with an awk command
+- read.yaml function now exported
+- Added strand bias filtering to MuTect
+- Strand bias filtering for MuTect only happens with paired-end data
+- Added gnomAD to ANNOVAR databases
+- Removed -d parameter from LoFreq without germline samples (it does nothing)
+- Added filter that removes duplicated variants from LoFreq output
+- Temporarily removed -s and -S parameters from LoFreq (mem limit)
+- LoFreq now runs lofreq viterbi on illumina data
+- Fixed encoding issue in process.total.coverage.statistics.R in strict latin1 locale
+
+VariTAS 	(2020-02-07)					                        v0.0.1
+--------------------------------------------------------------
+- Revisions for CRAN submission
+
 VariTAS 	(2019-11-05)					                        v0.8.1
 --------------------------------------------------------------
 - LoFreq should now call indels
 - Added dbSNP filtering to LoFreq
 - Added -s (source quality) parameter to LoFreq, should increase accuracy
-
-VariTAS 	(2019--)					                        v0.8.0
---------------------------------------------------------------
 - Added extra margin to output plots for longer sample names
 
 VariTAS 	(2019-05-06)					                        v0.8.0

@@ -206,10 +206,10 @@ The final page of the PDF report contains details on the pipeline run, including
 ```
 ## VariTAS version 0.7.0
 ##  Date: 2018-04-26
-##  User: eholgers
+##  User: username
 
 ## Raw/intermediate files can be found in
-##  /scratch/DBC/BCRBIOIN/SHARED/analysis/NickTurner/VariTAS/data/thyroid
+##  /data/analysis_dir
 ```
 
 ## Running the Full Pipeline
@@ -244,7 +244,7 @@ run.varitas.pipeline(
     file.details = vcf.specification,
     output.directory = output.directory,
     start.stage = 'annotation',
-    email = 'Erle.Holgersen@icr.ac.uk',
+    email = 'sid@pid.ac.uk',
     quiet = TRUE
     );
 ```
@@ -404,7 +404,7 @@ run.varitas.pipeline(
     variant.callers = c('mutect', 'vardict'),
     quiet = FALSE,
     run.name = 'EXAMPLE',
-    email = 'adam.mills@icr.ac.uk'
+    email = 'sid@pid.ac.uk'
     )
 ```
 
@@ -455,7 +455,7 @@ run.varitas.pipeline(
   variant.callers = c('mutect', 'vardict'),
   quiet = FALSE,
   run.name = 'EXAMPLE',
-  email = 'adam.mills@icr.ac.uk'
+  email = 'sid@pid.ac.uk'
   )
 
 ```
@@ -519,7 +519,7 @@ run.varitas.pipeline.hybrid(
 	proton = TRUE,
 	run.name = 'EXAMPLE',
 	quiet = FALSE,
- 	email = 'adam.mills@icr.ac.uk'
+ 	email = 'sid@pid.ac.uk'
  	);
 ```
 
@@ -555,7 +555,7 @@ run.varitas.pipeline.hybrid(
 	output.directory = 'inst/extdata/output/',
 	run.name = 'EXAMPLE',
 	quiet = FALSE,
- 	email = 'adam.mills@icr.ac.uk'
+ 	email = 'sid@pid.ac.uk'
  	)
 ```
 
